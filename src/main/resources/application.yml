@@ -12,13 +12,14 @@ elasticsearch:
 
 rollcall:
   aliases:
-    -
-      alias: file_centric
+    - alias: file_centric
       entity: file
       type: centric
-    -
-      alias: participant_centric
+    - alias: participant_centric
       entity: participant
+      type: centric
+    - alias: quicksearch_centric
+      entity: quicksearch
       type: centric
 
 debug: false
