@@ -42,6 +42,7 @@
         <java.version>11</java.version>
         <antlr4.version>4.7</antlr4.version>
         <antlr4-maven.version>4.7</antlr4-maven.version>
+        <jaxb-api.version>2.3.1</jaxb-api.version>
     </properties>
 
     <dependencies>
@@ -145,6 +146,18 @@
             <scope>test</scope>
         </dependency>
 
+
+        <!-- JAXB 2.3.for jdk11 -->
+        <dependency>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+            <version>${jaxb-api.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jaxb</groupId>
+            <artifactId>jaxb-runtime</artifactId>
+            <version>${jaxb-api.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
