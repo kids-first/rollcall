@@ -19,120 +19,70 @@
 package bio.overture.rollcall.config;
 
 import bio.overture.rollcall.jwt.JWTAuthorizationFilter;
-import bio.overture.rollcall.jwt.JWTTokenConverter;
+import com.auth0.spring.security.api.JwtWebSecurityConfigurer;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.Ordered;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
-import org.springframework.security.oauth2.config.annotation.web.configuration.ResourceServerConfigurerAdapter;
-import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
-import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
-import org.springframework.security.oauth2.provider.token.TokenStore;
-import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
-import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.util.Collections;
 
 @Slf4j
 @EnableWebSecurity
 @EnableResourceServer
 @Profile("!test")
-public class WebSecurityConfig extends ResourceServerConfigurerAdapter {
+public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
-  @Autowired // Field injection bad, but clean in this spot.
-  private ResourceLoader resourceLoader;
+    @Value("${auth0.apiAudience}")
+    private String audience;
 
-  @Value("${auth.jwt.publicKeyUrl}")
-  private String publicKeyUrl;
+    @Value("${auth0.issuer}")
+    private String issuer;
 
-  @Override
-  @SneakyThrows
-  public void configure(HttpSecurity http) {
-    http
-      .authorizeRequests()
-      .antMatchers(HttpMethod.OPTIONS, "/aliases/*").permitAll()
-      .antMatchers(HttpMethod.OPTIONS, "/indices/*").permitAll()
-      .antMatchers("/health").permitAll()
-      .antMatchers("/isAlive").permitAll()
-      .antMatchers("/upload/**").permitAll()
-      .antMatchers("/download/**").permitAll()
-      .antMatchers("/entities/**").permitAll()
-      .antMatchers("/swagger**", "/swagger-resources/**", "/v2/api**", "/webjars/**").permitAll()
-      .and()
-      .authorizeRequests()
-      .anyRequest().authenticated()
-      .and()
-      .addFilterAfter(new JWTAuthorizationFilter(), BasicAuthenticationFilter.class);
-  }
+    @Override
+    @SneakyThrows
+    public void configure(HttpSecurity http) {
+        JwtWebSecurityConfigurer
+                .forRS256(audience, issuer)
+                .configure(http)
+                .authorizeRequests()
+                .antMatchers("/swagger**", "/swagger-resources/**", "/v2/api**", "/webjars/**").permitAll()
+                .and()
+                .authorizeRequests()
+                .antMatchers(HttpMethod.POST).authenticated()
+                .and()
+                .authorizeRequests()
+                .anyRequest().authenticated()
+                .and()
+                .addFilterAfter(new JWTAuthorizationFilter(), BasicAuthenticationFilter.class);
 
-  @Bean
-  @SuppressWarnings("unchecked")
-  public FilterRegistrationBean simpleCorsFilter() {
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    CorsConfiguration config = new CorsConfiguration();
-    config.setAllowCredentials(true);
-    config.setAllowedOrigins(Collections.singletonList("*"));
-    config.setAllowedMethods(Collections.singletonList("*"));
-    config.setAllowedHeaders(Collections.singletonList("*"));
-    source.registerCorsConfiguration("/**", config);
-    FilterRegistrationBean bean = new FilterRegistrationBean(new org.springframework.web.filter.CorsFilter(source));
-    bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
-    return bean;
-  }
+    }
 
-  @Override
-  public void configure(ResourceServerSecurityConfigurer config) {
-    config.tokenServices(tokenServices());
-  }
+    @Bean
+    @SuppressWarnings("unchecked")
+    public FilterRegistrationBean simpleCorsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowCredentials(true);
+        config.setAllowedOrigins(Collections.singletonList("*"));
+        config.setAllowedMethods(Collections.singletonList("*"));
+        config.setAllowedHeaders(Collections.singletonList("*"));
+        source.registerCorsConfiguration("/**", config);
+        FilterRegistrationBean bean = new FilterRegistrationBean(new org.springframework.web.filter.CorsFilter(source));
+        bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        return bean;
+    }
 
-  @Bean
-  public TokenStore tokenStore() {
-    return new JwtTokenStore(accessTokenConverter());
-  }
-
-  @Bean
-  @SneakyThrows
-  public JwtAccessTokenConverter accessTokenConverter() {
-    return new JWTTokenConverter(fetchJWTPublicKey());
-  }
-
-
-  @Bean
-  public DefaultTokenServices tokenServices() {
-    val defaultTokenServices = new DefaultTokenServices();
-    defaultTokenServices.setTokenStore(tokenStore());
-    return defaultTokenServices;
-  }
-
-  /**
-   * Call EGO server for public key to use when verifying JWTs
-   * Pass this value to the JWTTokenConverter
-   */
-  @SneakyThrows
-  private String fetchJWTPublicKey() {
-    val publicKeyResource = resourceLoader.getResource(publicKeyUrl);
-
-    val stringBuilder = new StringBuilder();
-    val reader = new BufferedReader(
-      new InputStreamReader(publicKeyResource.getInputStream()));
-
-    reader.lines().forEach(stringBuilder::append);
-    return stringBuilder.toString();
-  }
 
 }

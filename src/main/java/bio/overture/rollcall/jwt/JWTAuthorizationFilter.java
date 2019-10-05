@@ -18,11 +18,13 @@
 
 package bio.overture.rollcall.jwt;
 
+import com.auth0.jwt.interfaces.Claim;
+import com.auth0.jwt.interfaces.DecodedJWT;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails;
 import org.springframework.web.filter.GenericFilterBean;
 
 import javax.servlet.FilterChain;
@@ -32,27 +34,25 @@ import javax.servlet.ServletResponse;
 @Slf4j
 public class JWTAuthorizationFilter extends GenericFilterBean {
 
-  private final static String ADMIN_ROLE = "ADMIN";
-  private final static String APPROVED_STATUS = "Approved";
-
   @Override
   @SneakyThrows
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) {
     val authentication = SecurityContextHolder.getContext().getAuthentication();
-    if (authentication != null) {
+    if(authentication != null) {
 
-      val details = (OAuth2AuthenticationDetails) authentication.getDetails();
-      val user = (JWTUser) details.getDecodedDetails();
+      DecodedJWT details = (DecodedJWT) authentication.getDetails();
 
-      boolean hasCorrectRole = user.getRoles().contains(ADMIN_ROLE);
-      boolean hasCorrectStatus = user.getStatus().equalsIgnoreCase(APPROVED_STATUS);
-
-      if (!hasCorrectRole || !hasCorrectStatus) {
+      if(!validateTokenDetails(details)) {
         SecurityContextHolder.clearContext();
       }
     }
 
     chain.doFilter(request, response);
+  }
+
+  private boolean validateTokenDetails(@NonNull DecodedJWT jwtDetails) {
+    Claim gty = jwtDetails.getClaim("gty");
+    return !gty.isNull() && gty.asString().equals("client-credentials");
   }
 
 }

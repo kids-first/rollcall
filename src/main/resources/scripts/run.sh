@@ -6,4 +6,5 @@ java -jar $ROLLCALL_INSTALL_PATH/install/ROLLCALL.jar \
         --elasticsearch.host=$ROLLCALL_ES_HOST \
         --elasticsearch.port=$ROLLCALL_ES_PORT \
         --elasticsearch.cluster-name=$ROLLCALL_ES_CLUSTER \
-        --auth.jwt.publicKeyUrl=$EGO_URL
+        --auth0.issuer=$AUTH0_ISSUER \
+        --auth0.audience=$AUTH0_AUDIENCE

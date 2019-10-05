@@ -1,9 +1,9 @@
 server:
   port: 9001
 
-auth:
-  jwt:
-    publicKeyUrl: "http://localhost:8081/oauth/token/public_key"
+auth0:
+  issuer: "https://kids-first.auth0.com/"
+  apiAudience: "https://kf-release-coord.kidsfirstdrc.org"
 
 elasticsearch:
   host: 127.0.0.1
