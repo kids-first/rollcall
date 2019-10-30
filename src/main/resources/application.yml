@@ -18,8 +18,5 @@ rollcall:
     - alias: participant_centric
       entity: participant
       type: centric
-    - alias: quicksearch_centric
-      entity: quicksearch
-      type: centric
 
 debug: false
