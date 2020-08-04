@@ -1,10 +1,11 @@
-@Library(value="kids-first/aws-infra-jenkins-shared-libraries", changelog=false) _
+@Library(value="kids-first/aws-infra-jenkins-shared-libraries-master", changelog=false) _
 ecs_service_type_1_standard {
-    ecs_service_type_1_version = "v2.5"
+    ecs_service_type_1_version = "master"
     projectName = "rollcall"
     environments = "dev,qa,prd"
     docker_image_type = "alpine"
-    entrypoint_command = "/srv/rollcall/exec/run.sh"
+    docker_workdir_path = "/src/rollcall"
+    entrypoint_command = "/src/rollcall/exec/run.sh"
     quick_deploy = "true"
     create_additional_internal_alb = "1"
     internal_app = "false"
