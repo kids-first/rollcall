@@ -14,7 +14,7 @@ ecs_service_type_1_standard {
     memory_container           = "4096"
     vcpu_task                  = "2048"
     memory_task                = "4096"
-    health_check_path = "/oauth/token/public_key"
+    health_check_path = "/swagger-ui.html"
     dependencies = "ecr"
     friendly_dns_name = "rollcall"
 }
