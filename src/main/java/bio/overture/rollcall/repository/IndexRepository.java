@@ -21,58 +21,75 @@ package bio.overture.rollcall.repository;
 import lombok.SneakyThrows;
 import lombok.val;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
-import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
-import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
-import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.cluster.metadata.AliasMetaData;
-import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.*;
+import java.util.stream.Collectors;
 
-import static org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions.*;
+import static org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions.add;
+import static org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions.remove;
 
 @Repository
 public class IndexRepository {
 
-  private final TransportClient client;
+    private final RestHighLevelClient client;
 
-  @Autowired
-  public IndexRepository(TransportClient client) {
-    this.client = client;
-  }
-
-  @SneakyThrows
-  public String[] getIndices() {
-    return client.admin().indices()
-      .getIndex(new GetIndexRequest()).get()
-      .getIndices();
-  }
-
-  @SneakyThrows
-  public ImmutableOpenMap<String, List<AliasMetaData>> getAliasState() {
-    return client.admin().indices()
-      .getAliases(new GetAliasesRequest()).get()
-      .getAliases();
-  }
-
-  @SneakyThrows
-  public boolean removeAlias(String alias, List<String> indices) {
-    val req = new IndicesAliasesRequest();
-    indices.forEach(i -> req.addAliasAction(remove().alias(alias).index(i)));
-
-    if (req.getAliasActions().isEmpty()) {
-      return true;
+    @Autowired
+    public IndexRepository(RestHighLevelClient client) {
+        this.client = client;
     }
-    return client.admin().indices().aliases(req).get().isAcknowledged();
-  }
 
-  @SneakyThrows
-  public boolean addAlias(String alias, List<String> indices) {
-    val req = new IndicesAliasesRequest();
-    indices.forEach(i -> req.addAliasAction(add().alias(alias).index(i)));
-    return client.admin().indices().aliases(req).get().isAcknowledged();
-  }
+    @SneakyThrows
+    public String[] getIndices() {
+        InputStream inputStream = this.client.getLowLevelClient()
+                .performRequest("GET", "/_cat/indices?h=i")
+                .getEntity()
+                .getContent();
+
+        return new BufferedReader(new InputStreamReader(inputStream))
+                .lines().toArray(String[]::new);
+
+    }
+
+    @SneakyThrows
+    public Map<String, Set<AliasMetaData>> getAliasState() {
+        InputStream inputStream = this.client.getLowLevelClient()
+                .performRequest("GET", "/_cat/aliases")
+                .getEntity()
+                .getContent();
+
+        return new BufferedReader(new InputStreamReader(inputStream))
+                .lines()
+                .map(s -> s.split(" "))
+                .collect(
+                        Collectors.groupingBy(a -> a[1],
+                                Collectors.mapping(a-> AliasMetaData.builder(a[0]).build(), Collectors.toSet())
+                        )
+                );
+    }
+
+    @SneakyThrows
+    public boolean removeAlias(String alias, List<String> indices) {
+        val req = new IndicesAliasesRequest();
+        indices.forEach(i -> req.addAliasAction(remove().alias(alias).index(i)));
+
+        if (req.getAliasActions().isEmpty()) {
+            return true;
+        }
+        return client.indices().updateAliases(req).isAcknowledged();
+    }
+
+    @SneakyThrows
+    public boolean addAlias(String alias, List<String> indices) {
+        val req = new IndicesAliasesRequest();
+        indices.forEach(i -> req.addAliasAction(add().alias(alias).index(i)));
+        return client.indices().updateAliases(req).isAcknowledged();
+    }
 
 }

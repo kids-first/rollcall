@@ -20,88 +20,89 @@ package bio.overture.rollcall.repository;
 
 import lombok.SneakyThrows;
 import lombok.val;
+import org.apache.http.HttpHost;
 import org.assertj.core.util.Lists;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.transport.client.PreBuiltTransportClient;
-import org.junit.*;
-import org.testcontainers.containers.FixedHostPortGenericContainer;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.cluster.metadata.AliasMetaData;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
-import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class IndexRepositoryTest {
 
-  @ClassRule
-  public static GenericContainer esContainer =
-    new FixedHostPortGenericContainer("docker.elastic.co/elasticsearch/elasticsearch:6.3.2")
-      .withFixedExposedPort(10200, 9200)
-      .withFixedExposedPort(10300, 9300)
-      .waitingFor(Wait.forHttp("/")) // Wait until elastic start
-      .withEnv("discovery.type", "single-node");
+    @ClassRule
+    public static ElasticsearchContainer esContainer = new ElasticsearchContainer(
+            "docker.elastic.co/elasticsearch/elasticsearch:6.3.2"
+    );
 
-  private static String INDEX1 = "file_centric_sd_ygva0e1c_re_foobar";
-  private static String INDEX2 = "file_centric_sd_preasa7s_re_foobar";
-  private static String INDEX3 = "file_centric_sd_46sk55a3_re_foobar";
+    private static final String INDEX1 = "file_centric_sd_ygva0e1c_re_foobar";
+    private static final String INDEX2 = "file_centric_sd_preasa7s_re_foobar";
+    private static final String INDEX3 = "file_centric_sd_46sk55a3_re_foobar";
 
-  private TransportClient client;
-  private IndexRepository repository;
+    private RestHighLevelClient client;
+    private IndexRepository repository;
 
-  @Before
-  @SneakyThrows
-  public void setUp() {
-    client = new PreBuiltTransportClient(Settings.builder().put("cluster.name", "docker-cluster").build())
-      .addTransportAddress(new TransportAddress(InetAddress.getByName(esContainer.getIpAddress()), 10300));
-    repository = new IndexRepository(client);
+    @Before
+    @SneakyThrows
+    public void setUp() {
 
-    client.admin().indices().prepareCreate(INDEX1).get();
-    client.admin().indices().prepareCreate(INDEX2).get();
-    client.admin().indices().prepareCreate(INDEX3).get();
-    client.admin().indices().prepareCreate("badindex").get();
+        client = new RestHighLevelClient(
+                RestClient.builder(HttpHost.create(esContainer.getHttpHostAddress())));
+        repository = new IndexRepository(client);
 
-    TimeUnit.SECONDS.sleep(1);
-  }
+        client.indices().create(new CreateIndexRequest(INDEX1));
+        client.indices().create(new CreateIndexRequest(INDEX2));
+        client.indices().create(new CreateIndexRequest(INDEX3));
+        client.indices().create(new CreateIndexRequest("badindex"));
+        TimeUnit.SECONDS.sleep(1);
+    }
 
     @After
     @SneakyThrows
     public void tearDown() {
-      client.admin().indices().delete(new DeleteIndexRequest(INDEX1)).get();
-      client.admin().indices().delete(new DeleteIndexRequest(INDEX2)).get();
-      client.admin().indices().delete(new DeleteIndexRequest(INDEX3)).get();
-      client.admin().indices().delete(new DeleteIndexRequest("badindex")).get();
+        client.indices().delete(new DeleteIndexRequest(INDEX1));
+        client.indices().delete(new DeleteIndexRequest(INDEX2));
+        client.indices().delete(new DeleteIndexRequest(INDEX3));
+        client.indices().delete(new DeleteIndexRequest("badindex"));
     }
 
-  @Test
-  @SneakyThrows
-  public void getStateTestNoAlias() {
-    repository.getAliasState().valuesIt().forEachRemaining(i -> assertThat(i).isEmpty());
-  }
+    @Test
+    @SneakyThrows
+    public void getStateTestNoAlias() {
+        repository.getAliasState().values().iterator().forEachRemaining(i -> assertThat(i).isEmpty());
+    }
 
-  @Test
-  @SneakyThrows
-  public void releaseAndRemoveTest() {
-    val list = Lists.list(INDEX1,INDEX2,INDEX3);
+    @Test
+    @SneakyThrows
+    public void releaseAndRemoveTest() {
+        val list = Lists.list(INDEX1, INDEX2, INDEX3);
 
-    val added = repository.addAlias("file_centric", list);
+        val added = repository.addAlias("file_centric", list);
 
-    assertThat(added).isTrue();
+        assertThat(added).isTrue();
 
-    val state = repository.getAliasState();
-    list.forEach(index -> {
-      val indexState = state.get(index);
-      assertThat(indexState).isNotEmpty();
-      assertThat(indexState.get(0).alias()).isEqualTo("file_centric");
-    });
+        val state = repository.getAliasState();
+        list.forEach(index -> {
+            Set<AliasMetaData> aliasMetaData = state.get(index);
+            val indexState = new ArrayList<>(aliasMetaData);
+            assertThat(indexState).isNotEmpty();
+            assertThat(indexState.get(0).alias()).isEqualTo("file_centric");
+        });
 
-    val removed = repository.removeAlias("file_centric", Lists.list(INDEX1,INDEX2,INDEX3));
-    assertThat(removed).isTrue();
-    repository.getAliasState().valuesIt().forEachRemaining(i -> assertThat(i).isEmpty());
-  }
+        val removed = repository.removeAlias("file_centric", Lists.list(INDEX1, INDEX2, INDEX3));
+        assertThat(removed).isTrue();
+        repository.getAliasState().values().iterator().forEachRemaining(i -> assertThat(i).isEmpty());
+    }
 
 }

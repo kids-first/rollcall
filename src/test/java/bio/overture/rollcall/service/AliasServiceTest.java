@@ -24,12 +24,15 @@ import bio.overture.rollcall.model.AliasRequest;
 import bio.overture.rollcall.repository.IndexRepository;
 import lombok.SneakyThrows;
 import lombok.val;
+import org.apache.http.HttpHost;
 import org.assertj.core.util.Lists;
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
+
+import org.elasticsearch.cluster.metadata.AliasMetaData;
+import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -37,92 +40,106 @@ import org.junit.Test;
 import org.testcontainers.containers.FixedHostPortGenericContainer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
-import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class AliasServiceTest {
 
-  @ClassRule
-  public static GenericContainer esContainer =
-    new FixedHostPortGenericContainer("docker.elastic.co/elasticsearch/elasticsearch:6.3.2")
-      .withFixedExposedPort(10200, 9200)
-      .withFixedExposedPort(10300, 9300)
-      .waitingFor(Wait.forHttp("/")) // Wait until elastic start
-      .withEnv("discovery.type", "single-node");
+    @ClassRule
+    public static ElasticsearchContainer esContainer = new ElasticsearchContainer(
+            "docker.elastic.co/elasticsearch/elasticsearch:6.4.3"
+    );
 
-  private static String INDEX1 = "file_centric_sd_ygva0e1c_re_foobar1";
-  private static String INDEX2 = "file_centric_sd_preasa7s_re_foobar1";
-  private static String INDEX3 = "file_centric_sd_preasa7s_re_foobar2";
+    private static final String INDEX1 = "file_centric_sd_ygva0e1c_re_foobar1";
+    private static final String INDEX2 = "file_centric_sd_preasa7s_re_foobar1";
+    private static final String INDEX3 = "file_centric_sd_preasa7s_re_foobar2";
 
-  private TransportClient client;
-  private IndexRepository repository;
-  private AliasService service;
+    private RestHighLevelClient client;
+    private IndexRepository repository;
+    private AliasService service;
 
-  @Before
-  @SneakyThrows
-  public void setUp() {
-    client = new PreBuiltTransportClient(Settings.builder().put("cluster.name", "docker-cluster").build())
-      .addTransportAddress(new TransportAddress(InetAddress.getByName(esContainer.getIpAddress()), 10300));
-    repository = new IndexRepository(client);
+    @Before
+    @SneakyThrows
+    public void setUp() {
+        client = new RestHighLevelClient(
+                RestClient.builder(
+                        HttpHost.create(esContainer.getHttpHostAddress())));
 
-    val config = new RollcallConfig(Lists.list(new RollcallConfig.ConfiguredAlias("file_centric", "file", "centric")));
-    service = new AliasService(config, repository);
+        repository = new IndexRepository(client);
 
-    client.admin().indices().prepareCreate(INDEX1).get();
-    client.admin().indices().prepareCreate(INDEX2).get();
-    client.admin().indices().prepareCreate(INDEX3).get();
-    client.admin().indices().prepareCreate("badindex").get();
-  }
+        val config = new RollcallConfig(Lists.list(new RollcallConfig.ConfiguredAlias("file_centric", "file", "centric")));
+        service = new AliasService(config, repository);
 
-  @After
-  @SneakyThrows
-  public void tearDown() {
-    client.admin().indices().delete(new DeleteIndexRequest(INDEX1)).get();
-    client.admin().indices().delete(new DeleteIndexRequest(INDEX2)).get();
-    client.admin().indices().delete(new DeleteIndexRequest(INDEX3)).get();
-    client.admin().indices().delete(new DeleteIndexRequest("badindex")).get();
-  }
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest(INDEX1);
+        client.indices().create(createIndexRequest);
+        client.indices().create(new CreateIndexRequest(INDEX2));
+        client.indices().create(new CreateIndexRequest(INDEX3));
+        client.indices().create(new CreateIndexRequest("badindex"));
+    }
 
-  @Test
-  public void getConfiguredTest() {
-    val configured = service.getConfigured();
-    assertThat(configured).hasSize(1);
-  }
+    @After
+    @SneakyThrows
+    public void tearDown() {
+        client.indices().delete(new DeleteIndexRequest(INDEX1));
+        client.indices().delete(new DeleteIndexRequest(INDEX2));
+        client.indices().delete(new DeleteIndexRequest(INDEX3));
+        client.indices().delete(new DeleteIndexRequest("badindex"));
+    }
 
-  @Test
-  public void releaseTest() {
-    val request1 = new AliasRequest("file_centric", "RE_foobar1", Lists.list("SD_preasa7s", "sd_ygva0e1c"));
-    service.release(request1);
-    val state1 = repository.getAliasState();
-    assertThat(state1.get(INDEX1).get(0).alias()).isEqualTo("file_centric");
-    assertThat(state1.get(INDEX2).get(0).alias()).isEqualTo("file_centric");
+    @Test
+    public void getConfiguredTest() {
+        val configured = service.getConfigured();
+        assertThat(configured).hasSize(1);
+    }
 
-    val request2 = new AliasRequest("file_centric", "RE_foobar2", Lists.list("SD_preasa7s"));
-    service.release(request2);
-    val state2 = repository.getAliasState();
-    assertThat(state2.get(INDEX1).get(0).alias()).isEqualTo("file_centric");
-    assertThat(state2.get(INDEX2).isEmpty()).isTrue();
-    assertThat(state2.get(INDEX3).get(0).alias()).isEqualTo("file_centric");
-  }
 
-  @Test
-  public void testReleaseNonDestructiveFailurePreFlight() {
-    val request1 = new AliasRequest("file_centric", "RE_foobar1", Lists.list("SD_preasa7s", "sd_ygva0e1c"));
-    service.release(request1);
-    val state1 = repository.getAliasState();
-    assertThat(state1.get(INDEX1).get(0).alias()).isEqualTo("file_centric");
-    assertThat(state1.get(INDEX2).get(0).alias()).isEqualTo("file_centric");
+    @NotNull
+    private static ArrayList<AliasMetaData> listAliases(Map<String, Set<AliasMetaData>> state1, String index1) {
+        return new ArrayList<>(state1.get(index1));
+    }
 
-    val badRequest = new AliasRequest("file_centric", "THIS_RELEASE_DONT_EXIST", Lists.list("SD_preasa7s", "sd_ygva0e1c"));
-    assertThatThrownBy(() -> service.release(badRequest)).isInstanceOf(ReleaseIntegrityException.class);
+    private static AliasMetaData firstAlias(Map<String, Set<AliasMetaData>> state1, String index1) {
+        return listAliases(state1, index1).get(0);
+    }
 
-    // Should not have changed.
-    val state2 = repository.getAliasState();
-    assertThat(state2.get(INDEX1).get(0).alias()).isEqualTo("file_centric");
-    assertThat(state2.get(INDEX2).get(0).alias()).isEqualTo("file_centric");
-  }
+    @Test
+    public void releaseTest() {
+        val request1 = new AliasRequest("file_centric", "RE_foobar1", Lists.list("SD_preasa7s", "sd_ygva0e1c"));
+        service.release(request1);
+        val state1 = repository.getAliasState();
+        assertThat(firstAlias(state1, INDEX1).alias()).isEqualTo("file_centric");
+        assertThat(firstAlias(state1, INDEX2).alias()).isEqualTo("file_centric");
+
+        val request2 = new AliasRequest("file_centric", "RE_foobar2", Lists.list("SD_preasa7s"));
+        service.release(request2);
+        val state2 = repository.getAliasState();
+        assertThat(firstAlias(state2, INDEX1).alias()).isEqualTo("file_centric");
+        assertThat(state2).doesNotContainKey(INDEX2);
+        assertThat(firstAlias(state2, INDEX3).alias()).isEqualTo("file_centric");
+    }
+
+
+    @Test
+    public void testReleaseNonDestructiveFailurePreFlight() {
+        val request1 = new AliasRequest("file_centric", "RE_foobar1", Lists.list("SD_preasa7s", "sd_ygva0e1c"));
+        service.release(request1);
+        val state1 = repository.getAliasState();
+        assertThat(firstAlias(state1, INDEX1).alias()).isEqualTo("file_centric");
+        assertThat(firstAlias(state1, INDEX2).alias()).isEqualTo("file_centric");
+
+        val badRequest = new AliasRequest("file_centric", "THIS_RELEASE_DONT_EXIST", Lists.list("SD_preasa7s", "sd_ygva0e1c"));
+        assertThatThrownBy(() -> service.release(badRequest)).isInstanceOf(ReleaseIntegrityException.class);
+
+        // Should not have changed.
+        val state2 = repository.getAliasState();
+        assertThat(firstAlias(state2, INDEX1).alias()).isEqualTo("file_centric");
+        assertThat(firstAlias(state2, INDEX2).alias()).isEqualTo("file_centric");
+    }
 
 }
