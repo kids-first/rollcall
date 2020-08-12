@@ -79,7 +79,7 @@ public class AliasService {
     // First identify candidates and check existence of at least one.
     val candidatesOpt = this.getCandidates().stream()
       .filter(c -> c.getAlias().getAlias().equals(alias)).findFirst();
-    if (!candidatesOpt.isPresent()) {
+    if (candidatesOpt.isEmpty()) {
       throw new NoSuchAliasWithCandidatesException("No such alias with index candidates");
     }
     val candidates = candidatesOpt.get();
@@ -105,7 +105,7 @@ public class AliasService {
     val candidates = this.getCandidates().stream()
       .filter(c -> c.getAlias().getAlias().equals(alias))
       .findFirst();
-    if (!candidates.isPresent()) {
+    if (candidates.isEmpty()) {
       throw new NoSuchAliasWithCandidatesException("No such alias with index candidates");
     }
 
@@ -147,13 +147,11 @@ public class AliasService {
     val state = repository.getAliasState();
 
     List<String> existing = new ArrayList<>();
-    state.forEach( entry -> {
-      val indexName = entry.key;
-      val aliases = entry.value;
+    state.forEach((indexName, aliases) -> {
 
       val foundOpt = aliases.stream()
-        .filter(a -> a.alias().equals(alias))
-        .findFirst();
+              .filter(a -> a.alias().equals(alias))
+              .findFirst();
 
       if (foundOpt.isPresent()) {
         existing.add(indexName);

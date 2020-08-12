@@ -20,9 +20,10 @@ package bio.overture.rollcall;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchAutoConfiguration;
 import org.springframework.boot.autoconfigure.elasticsearch.rest.RestClientAutoConfiguration;
 
-@SpringBootApplication(exclude = {RestClientAutoConfiguration.class})
+@SpringBootApplication(exclude = {ElasticsearchAutoConfiguration.class, RestClientAutoConfiguration.class})
 public class RollcallApplication {
 
   public static void main(String[] args) {
