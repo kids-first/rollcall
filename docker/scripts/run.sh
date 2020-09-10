@@ -26,11 +26,17 @@ if [  -z ${ES_CLUSTER_NAME+x} ]; then
     exit 1
 fi
 
+if [  -z ${c+x} ]; then
+    echo "The env variable ES_SCHEME is undefined"
+    exit 1
+fi
+
 CONF_DIR=/conf
 mkdir $CONF_DIR
 CONFIG_FILE=${CONF_DIR}/application.properties
 echo "elasticsearch.host=$ES_HOST" > $CONFIG_FILE
 echo "elasticsearch.port=$ES_PORT" >> $CONFIG_FILE
+echo "elasticsearch.scheme=$ES_SCHEME" >> $CONFIG_FILE
 echo "elasticsearch.cluster-name=$ES_CLUSTER_NAME" >> $CONFIG_FILE
 
 java -Dspring.config.location=classpath:/application.yml,file:${CONFIG_FILE}  -jar $JAR_PATH
