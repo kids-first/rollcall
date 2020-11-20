@@ -60,7 +60,7 @@ public class IndexRepository {
     @SneakyThrows
     public Map<String, Set<AliasMetaData>> getAliasState() {
         InputStream inputStream = this.client.getLowLevelClient()
-                .performRequest("GET", "/_cat/aliases")
+                .performRequest("GET", "/_cat/aliases?h=i,a")
                 .getEntity()
                 .getContent();
 
@@ -68,8 +68,8 @@ public class IndexRepository {
                 .lines()
                 .map(s -> s.split(" "))
                 .collect(
-                        Collectors.groupingBy(a -> a[1],
-                                Collectors.mapping(a-> AliasMetaData.builder(a[0]).build(), Collectors.toSet())
+                        Collectors.groupingBy(a -> a[0],
+                                Collectors.mapping(a-> AliasMetaData.builder(a[1]).build(), Collectors.toSet())
                         )
                 );
     }
