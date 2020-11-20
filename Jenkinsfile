@@ -1,8 +1,10 @@
-@Library(value="kids-first/aws-infra-jenkins-shared-libraries", changelog=false) _
+@Library(value="kids-first/aws-infra-jenkins-shared-libraries@feature/add-tests", changelog=false) _
 ecs_service_type_1_standard {
     projectName = "rollcall"
     environments = "dev,qa,prd"
     docker_image_type = "alpine"
+    deploy_scripts_version = "feature/add-tests"
+    ecs_service_type_1_version = "feature/add-tests"
     docker_workdir_path = "/srv/rollcall"
     entrypoint_command = "/srv/rollcall/exec/run.sh"
     quick_deploy = "true"
