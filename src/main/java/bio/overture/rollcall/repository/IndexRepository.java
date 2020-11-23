@@ -66,7 +66,7 @@ public class IndexRepository {
 
         return new BufferedReader(new InputStreamReader(inputStream))
                 .lines()
-                .map(s -> s.split(" "))
+                .map(s -> s.split("\\s+"))
                 .collect(
                         Collectors.groupingBy(a -> a[0],
                                 Collectors.mapping(a-> AliasMetaData.builder(a[1]).build(), Collectors.toSet())
