@@ -38,7 +38,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;

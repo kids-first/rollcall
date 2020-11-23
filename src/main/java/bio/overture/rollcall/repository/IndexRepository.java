@@ -18,6 +18,8 @@
 
 package bio.overture.rollcall.repository;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
 import lombok.val;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -31,6 +33,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions.add;
 import static org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest.AliasActions.remove;
@@ -59,19 +62,27 @@ public class IndexRepository {
 
     @SneakyThrows
     public Map<String, Set<AliasMetaData>> getAliasState() {
-        InputStream inputStream = this.client.getLowLevelClient()
-                .performRequest("GET", "/_cat/aliases?h=i,a")
+        InputStream inputStreamFromCatApi = this.client.getLowLevelClient()
+                .performRequest("GET", "/_cat/aliases?format=json")
                 .getEntity()
                 .getContent();
 
-        return new BufferedReader(new InputStreamReader(inputStream))
-                .lines()
-                .map(s -> s.split("\\s+"))
-                .collect(
-                        Collectors.groupingBy(a -> a[0],
-                                Collectors.mapping(a-> AliasMetaData.builder(a[1]).build(), Collectors.toSet())
-                        )
-                );
+        TypeReference<List<Map<String, String>>> typeRef = new TypeReference<>() {
+        };
+        ObjectMapper mapper = new ObjectMapper();
+        List<Map<String, String>> rawAliasesMetaData = mapper.readValue(inputStreamFromCatApi, typeRef);
+
+        Map<String, Set<AliasMetaData>> indexNameToAliasesMetaData = new HashMap<>();
+        for (Map<String, String> rawAliasMetaData : rawAliasesMetaData) {
+            String keyIndexName = rawAliasMetaData.get("index");
+            AliasMetaData aliasMetaData = AliasMetaData
+                    .builder(rawAliasMetaData.get("alias"))
+                    .build();
+            Set<AliasMetaData> newSetOfAliasesMetaData = Stream.of(aliasMetaData)
+                    .collect(Collectors.toCollection(HashSet::new));
+            indexNameToAliasesMetaData.put(keyIndexName,newSetOfAliasesMetaData);
+        }
+        return indexNameToAliasesMetaData;
     }
 
     @SneakyThrows
