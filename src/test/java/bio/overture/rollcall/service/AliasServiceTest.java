@@ -38,9 +38,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -64,6 +62,7 @@ public class AliasServiceTest {
     private RestHighLevelClient client;
     private IndexRepository repository;
     private AliasService service;
+
 
     @Before
     @SneakyThrows
@@ -121,6 +120,10 @@ public class AliasServiceTest {
         return listAliases(state1, index1).get(0);
     }
 
+    private Set<AliasMetaData> createAliasStream (String alias){
+        return Stream.of(AliasMetaData.builder(alias).build()).collect(Collectors.toSet());
+    }
+
     @Test
     public void releaseTest() {
         val requestFC1 = new AliasRequest("file_centric", "RE_foobar1", Lists.list("SD_preasa7s", "sd_ygva0e1c"));
@@ -128,16 +131,20 @@ public class AliasServiceTest {
         val state1 = repository.getAliasState();
         //file_centric_sd_ygva0e1c_re_foobar1
         //file_centric_sd_preasa7s_re_foobar1
-        val result1 = Stream.of(INDEX1, INDEX2).collect(Collectors.toSet());
-        assertThat(state1.keySet()).isEqualTo(result1);
+        val result1 = new HashMap<String, Set<AliasMetaData>>();
+        result1.put(INDEX1 , createAliasStream("file_centric"));
+        result1.put(INDEX2 , createAliasStream("file_centric"));
+        assertThat(state1).isEqualTo(result1);
 
         val requestFC2 = new AliasRequest("file_centric", "RE_foobar2", Lists.list("SD_preasa7s"));
         service.release(requestFC2);
         val state2 = repository.getAliasState();
         //file_centric_sd_ygva0e1c_re_foobar1
         //file_centric_sd_preasa7s_re_foobar2
-        val result2 = Stream.of(INDEX1, INDEX3).collect(Collectors.toSet());
-        assertThat(state2.keySet()).isEqualTo(result2);
+        val result2 = new HashMap<String, Set<AliasMetaData>>();
+        result2.put(INDEX1 , createAliasStream("file_centric"));
+        result2.put(INDEX3 , createAliasStream("file_centric"));
+        assertThat(state2).isEqualTo(result2);
 
         val requestPC1 = new AliasRequest("participant_centric", "RE_foobar1", Lists.list("SD_preasa7s", "sd_ygva0e1c"));
         service.release(requestPC1);
@@ -146,8 +153,13 @@ public class AliasServiceTest {
         //file_centric_sd_preasa7s_re_foobar2
         //participant_centric_sd_ygva0e1c_re_foobar1
         //participant_centric_sd_preasa7s_re_foobar1
-        val result3 = Stream.of(INDEX1, INDEX3, INDEX4, INDEX5).collect(Collectors.toSet());
-        assertThat(state3.keySet()).isEqualTo(result3);
+        val result3 = new HashMap<>();
+        result3.put(INDEX1 , createAliasStream("file_centric"));
+        result3.put(INDEX3 , createAliasStream("file_centric"));
+        result3.put(INDEX4 , createAliasStream("participant_centric"));
+        result3.put(INDEX5 , createAliasStream("participant_centric"));
+        assertThat(state3).isEqualTo(result3);
+
 
         val requestPC2 = new AliasRequest("participant_centric", "RE_foobar2", Lists.list("SD_preasa7s"));
         service.release(requestPC2);
@@ -156,8 +168,12 @@ public class AliasServiceTest {
         //file_centric_sd_preasa7s_re_foobar2
         //participant_centric_sd_ygva0e1c_re_foobar1
         //participant_centric_sd_preasa7s_re_foobar2
-        val result4 = Stream.of(INDEX1, INDEX3, INDEX4, INDEX6).collect(Collectors.toSet());
-        assertThat(state4.keySet()).isEqualTo(result4);
+        val result4 = new HashMap<>();
+        result4.put(INDEX1 , createAliasStream("file_centric"));
+        result4.put(INDEX3 , createAliasStream("file_centric"));
+        result4.put(INDEX4 , createAliasStream("participant_centric"));
+        result4.put(INDEX6 , createAliasStream("participant_centric"));
+        assertThat(state4).isEqualTo(result4);
     }
 
     @Test
