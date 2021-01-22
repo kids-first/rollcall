@@ -19,5 +19,8 @@ rollcall:
     - alias: participant_centric
       entity: participant
       type: centric
+    - alias: study_centric
+      entity: study
+      type: centric
 
 debug: false

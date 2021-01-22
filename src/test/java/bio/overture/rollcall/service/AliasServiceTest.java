@@ -58,6 +58,9 @@ public class AliasServiceTest {
     private static final String INDEX4 = "participant_centric_sd_ygva0e1c_re_foobar1";
     private static final String INDEX5 = "participant_centric_sd_preasa7s_re_foobar1";
     private static final String INDEX6 = "participant_centric_sd_preasa7s_re_foobar2";
+    private static final String INDEX7 = "study_centric_sd_ygva0e1c_re_foobar1";
+    private static final String INDEX8 = "study_centric_sd_preasa7s_re_foobar1";
+    private static final String INDEX9 = "study_centric_sd_preasa7s_re_foobar2";
 
     private RestHighLevelClient client;
     private IndexRepository repository;
@@ -76,7 +79,8 @@ public class AliasServiceTest {
         val config = new RollcallConfig(
                 Lists.list(
                         new RollcallConfig.ConfiguredAlias("file_centric", "file", "centric"),
-                        new RollcallConfig.ConfiguredAlias("participant_centric", "participant", "centric")
+                        new RollcallConfig.ConfiguredAlias("participant_centric", "participant", "centric"),
+                        new RollcallConfig.ConfiguredAlias("study_centric", "study", "centric")
                 )
         );
         service = new AliasService(config, repository);
@@ -88,6 +92,9 @@ public class AliasServiceTest {
         client.indices().create(new CreateIndexRequest(INDEX4));
         client.indices().create(new CreateIndexRequest(INDEX5));
         client.indices().create(new CreateIndexRequest(INDEX6));
+        client.indices().create(new CreateIndexRequest(INDEX7));
+        client.indices().create(new CreateIndexRequest(INDEX8));
+        client.indices().create(new CreateIndexRequest(INDEX9));
         client.indices().create(new CreateIndexRequest("badindex"));
     }
 
@@ -101,13 +108,16 @@ public class AliasServiceTest {
         client.indices().delete(new DeleteIndexRequest(INDEX4));
         client.indices().delete(new DeleteIndexRequest(INDEX5));
         client.indices().delete(new DeleteIndexRequest(INDEX6));
+        client.indices().delete(new DeleteIndexRequest(INDEX7));
+        client.indices().delete(new DeleteIndexRequest(INDEX8));
+        client.indices().delete(new DeleteIndexRequest(INDEX9));
     }
 
     @Test
     public void getConfiguredTest() {
         val configured = service.getConfigured();
         //participant_centric && file_centric
-        assertThat(configured).hasSize(2);
+        assertThat(configured).hasSize(3);
     }
 
 
@@ -123,6 +133,7 @@ public class AliasServiceTest {
     private Set<AliasMetaData> createAliasStream (String alias){
         return Stream.of(AliasMetaData.builder(alias).build()).collect(Collectors.toSet());
     }
+
 
     @Test
     public void releaseTest() {
@@ -174,6 +185,42 @@ public class AliasServiceTest {
         result4.put(INDEX4 , createAliasStream("participant_centric"));
         result4.put(INDEX6 , createAliasStream("participant_centric"));
         assertThat(state4).isEqualTo(result4);
+
+        val requestSC1 = new AliasRequest("study_centric", "RE_foobar1", Lists.list("SD_preasa7s", "sd_ygva0e1c"));
+        service.release(requestSC1);
+        val state5 = repository.getAliasState();
+        //file_centric_sd_ygva0e1c_re_foobar1
+        //file_centric_sd_preasa7s_re_foobar2
+        //participant_centric_sd_ygva0e1c_re_foobar1
+        //participant_centric_sd_preasa7s_re_foobar2
+        //study_centric_sd_ygva0e1c_re_foobar1
+        //study_centric_sd_preasa7s_re_foobar1
+        val result5 = new HashMap<>();
+        result5.put(INDEX1 , createAliasStream("file_centric"));
+        result5.put(INDEX3 , createAliasStream("file_centric"));
+        result5.put(INDEX4 , createAliasStream("participant_centric"));
+        result5.put(INDEX6 , createAliasStream("participant_centric"));
+        result5.put(INDEX7 , createAliasStream("study_centric"));
+        result5.put(INDEX8 , createAliasStream("study_centric"));
+        assertThat(state5).isEqualTo(result5);
+
+        val requestSC2 = new AliasRequest("study_centric", "RE_foobar2", Lists.list("SD_preasa7s"));
+        service.release(requestSC2);
+        val state6 = repository.getAliasState();
+        //file_centric_sd_ygva0e1c_re_foobar1
+        //file_centric_sd_preasa7s_re_foobar2
+        //participant_centric_sd_ygva0e1c_re_foobar1
+        //participant_centric_sd_preasa7s_re_foobar2
+        //study_centric_sd_ygva0e1c_re_foobar1
+        //study_centric_sd_preasa7s_re_foobar2
+        val result6 = new HashMap<>();
+        result6.put(INDEX1 , createAliasStream("file_centric"));
+        result6.put(INDEX3 , createAliasStream("file_centric"));
+        result6.put(INDEX4 , createAliasStream("participant_centric"));
+        result6.put(INDEX6 , createAliasStream("participant_centric"));
+        result6.put(INDEX7 , createAliasStream("study_centric"));
+        result6.put(INDEX9 , createAliasStream("study_centric"));
+        assertThat(state6).isEqualTo(result6);
     }
 
     @Test
