@@ -16,4 +16,5 @@ ecs_service_type_1_standard {
     health_check_path = "/swagger-ui.html"
     dependencies = "ecr"
     friendly_dns_name = "rollcall"
+    publish_to_public_repo = "true"
 }
