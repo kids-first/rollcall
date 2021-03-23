@@ -123,7 +123,7 @@
         <dependency>
             <groupId>org.elasticsearch.client</groupId>
             <artifactId>elasticsearch-rest-high-level-client</artifactId>
-            <version>6.3.1</version>
+            <version>6.8.14</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.elasticsearch.client</groupId>
