@@ -59,7 +59,7 @@
         <dependency>
             <groupId>org.springframework.security.oauth</groupId>
             <artifactId>spring-security-oauth2</artifactId>
-            <version>2.0.13.RELEASE</version>
+            <version>2.0.17.RELEASE</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -81,17 +81,17 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-jwt</artifactId>
-            <version>1.0.9.RELEASE</version>
+            <version>1.0.11.RELEASE</version>
         </dependency>
         <dependency>
             <groupId>com.auth0</groupId>
             <artifactId>auth0-spring-security-api</artifactId>
-            <version>1.2.6</version>
+            <version>1.4.1</version>
         </dependency>
         <dependency>
             <groupId>com.auth0</groupId>
             <artifactId>java-jwt</artifactId>
-            <version>3.8.3</version>
+            <version>3.12.0</version>
         </dependency>
 
         <!-- Lombok -->
@@ -113,7 +113,7 @@
         <dependency>
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch</artifactId>
-            <version>6.3.1</version>
+            <version>7.7.0</version>
         </dependency>
         <dependency>
             <groupId>org.elasticsearch.client</groupId>
@@ -139,12 +139,12 @@
         <dependency>
             <groupId>io.springfox</groupId>
             <artifactId>springfox-swagger2</artifactId>
-            <version>2.7.0</version>
+            <version>2.10.0</version>
         </dependency>
         <dependency>
             <groupId>io.springfox</groupId>
             <artifactId>springfox-swagger-ui</artifactId>
-            <version>2.7.0</version>
+            <version>2.10.0</version>
         </dependency>
 
         <!-- TestContainers -->
