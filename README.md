@@ -46,6 +46,7 @@ This problem is what Rollcall helps solve by introducing concepts like data rele
 
 ## Index Naming
 
+
 The thing that Rollcall is opinionated about is the way indices are named. So opinionated in fact that it uses a grammer file to describe the index naming grammer. 
 
 It can be found here: [IndexName.g4](src/main/antlr4/bio/overture/rollcall/antlr4/IndexName.g4)
