@@ -1,7 +1,7 @@
 @Library(value="kids-first/aws-infra-jenkins-shared-libraries", changelog=false) _
 ecs_service_type_1_standard {
     projectName = "rollcall"
-    environments = "dev,qa,prd"
+    environments = "qa,prd"
     docker_image_type = "alpine"
     docker_workdir_path = "/srv/rollcall"
     entrypoint_command = "/srv/rollcall/exec/run.sh"
